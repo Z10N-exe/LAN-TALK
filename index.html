@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeLAN Talk - Secure Local Messaging</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .message-enter {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        .message-enter-active {
+            opacity: 1;
+            transform: translateY(0);
+            transition: opacity 300ms, transform 300ms;
+        }
+        .glass {
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+            background-color: rgba(255, 255, 255, 0.75);
+        }
+        .dark .glass {
+            background-color: rgba(17, 24, 39, 0.75);
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="h-full bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+    <div class="min-h-full flex flex-col">
+        <!-- Header -->
+        <header class="glass sticky top-0 z-10 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center">
+                            <i class="fas fa-lock text-white"></i>
+                        </div>
+                        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">SafeLAN Talk</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-moon text-gray-600 dark:text-yellow-300"></i>
+                        </button>
+                        <div class="relative">
+                            <button id="usersToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                                <i class="fas fa-users text-gray-600 dark:text-gray-300"></i>
+                                <span id="userCount" class="absolute -top-1 -right-1 bg-indigo-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">0</span>
+                            </button>
+                            <div id="usersDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 z-20">
+                                <div class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700">Active Users</div>
+                                <div id="userList" class="max-h-60 overflow-y-auto"></div>
+                            </div>
+                        </div>
+                        <button id="infoToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-info-circle text-gray-600 dark:text-gray-300"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-grow flex flex-col max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+            <!-- Connection Status -->
+            <div id="connectionStatus" class="mb-4 flex items-center p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200">
+                <i class="fas fa-wifi-slash mr-2"></i>
+                <span>Connecting to local network...</span>
+            </div>
+
+            <!-- Info Panel -->
+            <div id="infoPanel" class="hidden mb-6 glass p-6 rounded-xl shadow-sm">
+                <h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">About SafeLAN Talk</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">🔐 Secure Local Messaging</h3>
+                        <p class="text-gray-600 dark:text-gray-400">SafeLAN Talk enables encrypted communication between devices on the same local network without requiring internet access.</p>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">📶 Offline LAN Connectivity</h3>
+                        <p class="text-gray-600 dark:text-gray-400">Messages flow directly between devices on your Wi-Fi network, keeping your communications local and private.</p>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">🧠 Instant Sync & Groups</h3>
+                        <p class="text-gray-600 dark:text-gray-400">Real-time messaging with support for group conversations among all users on the same network.</p>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-700 dark:text-gray-300 mb-2">🚀 How It Works</h3>
+                        <p class="text-gray-600 dark:text-gray-400">1. Connect devices to same Wi-Fi<br>2. Open SafeLAN Talk in browser<br>3. Start chatting securely!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="flex-grow flex flex-col glass rounded-xl shadow-sm overflow-hidden">
+                <!-- Messages Area -->
+                <div id="messages" class="flex-grow p-4 overflow-y-auto scrollbar-hide">
+                    <div class="text-center text-gray-500 dark:text-gray-400 py-10">
+                        <i class="fas fa-comments text-4xl mb-2"></i>
+                        <p>Start a secure conversation on your local network</p>
+                    </div>
+                </div>
+
+                <!-- Message Input -->
+                <div class="border-t border-gray-200 dark:border-gray-700 p-4">
+                    <form id="messageForm" class="flex space-x-2">
+                        <input 
+                            id="messageInput" 
+                            type="text" 
+                            placeholder="Type your secure message..." 
+                            class="flex-grow px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            autocomplete="off"
+                        >
+                        <button 
+                            type="submit" 
+                            class="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+                        >
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="glass py-4 mt-6">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-500 dark:text-gray-400">
+                <p>SafeLAN Talk — Secure Local Messaging | No Internet Required | End-to-End Encrypted</p>
+            </div>
+        </footer>
+    </div>
+<script src="https://cdn.jsdelivr.net/npm/bonjour@3.5.0/dist/bonjour.min.js"></script>
+<script>
+    // DOM Elements
+    const themeToggle = document.getElementById('themeToggle');
+    const infoToggle = document.getElementById('infoToggle');
+    const infoPanel = document.getElementById('infoPanel');
+    const usersToggle = document.getElementById('usersToggle');
+    const usersDropdown = document.getElementById('usersDropdown');
+    const userList = document.getElementById('userList');
+    const userCount = document.getElementById('userCount');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const messageForm = document.getElementById('messageForm');
+    const messageInput = document.getElementById('messageInput');
+    const messagesContainer = document.getElementById('messages');
+
+    // Theme Management
+    function setTheme(isDark) {
+        document.documentElement.classList.toggle('dark', isDark);
+        localStorage.setItem('darkMode', isDark);
+        themeToggle.innerHTML = isDark 
+            ? '<i class="fas fa-sun text-yellow-300"></i>' 
+            : '<i class="fas fa-moon text-gray-600"></i>';
+    }
+
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('darkMode');
+    const initialTheme = savedTheme ? JSON.parse(savedTheme) : prefersDark;
+    setTheme(initialTheme);
+
+    themeToggle.addEventListener('click', () => {
+        const isDark = !document.documentElement.classList.contains('dark');
+        setTheme(isDark);
+    });
+
+    // Toggle Info Panel
+    infoToggle.addEventListener('click', () => {
+        infoPanel.classList.toggle('hidden');
+        infoToggle.innerHTML = infoPanel.classList.contains('hidden') 
+            ? '<i class="fas fa-info-circle text-gray-600 dark:text-gray-300"></i>' 
+            : '<i class="fas fa-times text-gray-600 dark:text-gray-300"></i>';
+    });
+
+    // Toggle Users Dropdown
+    usersToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        usersDropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', () => {
+        usersDropdown.classList.add('hidden');
+    });
+
+    // User Setup
+    const adjectives = ['Secure', 'Private', 'Encrypted', 'Local', 'Fast', 'Safe', 'Anonymous', 'Hidden'];
+    const nouns = ['User', 'Member', 'Participant', 'Chatter', 'Node', 'Device', 'Peer', 'Terminal'];
+    const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
+    const username = `${randomAdjective} ${randomNoun}`;
+    const userId = Math.random().toString(36).substring(2, 10);
+    const ENCRYPTION_KEY = 'safe-lan-talk-key'; // Demo key; use secure key management in production
+
+    // WebSocket Connection
+    let socket;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+    const reconnectDelay = 3000;
+
+    function updateConnectionStatus(connected) {
+        if (connected) {
+            connectionStatus.className = 'mb-4 flex items-center p-3 rounded-lg bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+            connectionStatus.innerHTML = '<i class="fas fa-wifi mr-2"></i><span>Connected to local network</span>';
+        } else {
+            connectionStatus.className = 'mb-4 flex items-center p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
+            connectionStatus.innerHTML = '<i class="fas fa-wifi-slash mr-2"></i><span>Connecting to local network...</span>';
+        }
+    }
+
+    function connectWebSocket(host, port) {
+        socket = new WebSocket(`ws://${host}:${port}`);
+
+        socket.onopen = () => {
+            console.log('Connected to SafeLAN Talk server');
+            updateConnectionStatus(true);
+            reconnectAttempts = 0;
+
+            // Send join message
+            socket.send(JSON.stringify({
+                type: 'join',
+                id: userId,
+                username: username
+            }));
+        };
+
+        socket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+
+                switch (data.type) {
+                    case 'system':
+                        addSystemMessage(data.text);
+                        break;
+                    case 'message':
+                        addMessage(data);
+                        break;
+                    case 'userList':
+                        updateUserList(data.users);
+                        break;
+                }
+            } catch (error) {
+                console.error('Error processing message:', error);
+            }
+        };
+
+        socket.onclose = () => {
+            updateConnectionStatus(false);
+            if (reconnectAttempts < maxReconnectAttempts) {
+                console.log(`Reconnecting in ${reconnectDelay / 1000}s... Attempt ${reconnectAttempts + 1}`);
+                setTimeout(() => {
+                    reconnectAttempts++;
+                    discoverServer();
+                }, reconnectDelay);
+            } else {
+                addSystemMessage('Lost connection to the server. Please check your network.');
+            }
+        };
+
+        socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+    }
+
+    // Bonjour Service Discovery
+    function discoverServer() {
+        const bonjour = new Bonjour();
+        const browser = bonjour.find({ type: 'http' }, (service) => {
+            if (service.txt.app === 'safelan-talk') {
+                console.log(`Found SafeLAN Talk server: ${service.host}:${service.port}`);
+                connectWebSocket(service.host, service.port);
+                browser.stop();
+            }
+        });
+
+        // Timeout after 5 seconds if no server is found
+        setTimeout(() => {
+            if (socket?.readyState !== WebSocket.OPEN) {
+                addSystemMessage('No SafeLAN Talk server found on the network. Start the server and try again.');
+                browser.stop();
+            }
+        }, 5000);
+    }
+
+    function updateUserList(users) {
+        userList.innerHTML = '';
+        users.forEach(user => {
+            const userElement = document.createElement('div');
+            userElement.className = 'px-4 py-2 text-sm text-gray-700 dark:text-gray-300 flex items-center';
+            userElement.innerHTML = `
+                <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                ${user.name} ${user.id === userId ? '(You)' : ''}
+            `;
+            userList.appendChild(userElement);
+        });
+        userCount.textContent = users.length;
+    }
+
+    // Message Handling
+    function encryptMessage(text) {
+        return CryptoJS.AES.encrypt(text, ENCRYPTION_KEY).toString();
+    }
+
+    function decryptMessage(encrypted) {
+        try {
+            return CryptoJS.AES.decrypt(encrypted, ENCRYPTION_KEY).toString(CryptoJS.enc.Utf8);
+        } catch {
+            return '[Decryption Failed]';
+        }
+    }
+
+    function addMessage(message) {
+        const isCurrentUser = message.id === userId;
+        const decryptedText = decryptMessage(message.text);
+
+        const messageElement = document.createElement('div');
+        messageElement.className = `mb-4 flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`;
+        messageElement.innerHTML = `
+            <div class="max-w-xs md:max-w-md lg:max-w-lg xl:max-w-xl rounded-lg px-4 py-2 ${isCurrentUser 
+                ? 'bg-indigo-600 text-white rounded-br-none' 
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-bl-none'}">
+                <div class="text-xs font-semibold ${isCurrentUser ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'} mb-1">
+                    ${message.username} ${isCurrentUser ? '(You)' : ''}
+                </div>
+                <div class="break-words">${decryptedText}</div>
+                <div class="text-right text-xs mt-1 ${isCurrentUser ? 'text-indigo-200' : 'text-gray-500 dark:text-gray-400'}">
+                    ${new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+            </div>
+        `;
+
+        messageElement.classList.add('message-enter');
+        messagesContainer.appendChild(messageElement);
+
+        setTimeout(() => {
+            messageElement.classList.add('message-enter-active');
+        }, 10);
+
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        setTimeout(() => {
+            messageElement.classList.remove('message-enter', 'message-enter-active');
+        }, 300);
+    }
+
+    function addSystemMessage(text) {
+        const messageElement = document.createElement('div');
+        messageElement.className = 'mb-4 flex justify-center';
+        messageElement.innerHTML = `
+            <div class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full">
+                ${text}
+            </div>
+        `;
+        messagesContainer.appendChild(messageElement);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    messageForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const messageText = messageInput.value.trim();
+
+        if (messageText && socket?.readyState === WebSocket.OPEN) {
+            const encryptedMessage = encryptMessage(messageText);
+            const message = {
+                type: 'message',
+                id: userId,
+                username: username,
+                text: encryptedMessage,
+                timestamp: new Date().toISOString()
+            };
+            socket.send(JSON.stringify(message));
+            messageInput.value = '';
+        }
+    });
+
+    // Start server discovery
+    discoverServer();
+</script>
+</body>
+</html>
